@@ -1,25 +1,26 @@
 package main
 
 import (
-	"log"
+	"log/slog"
+	"os"
 
-	"github.com/Muthu1612/kanna/internal/api"
 	"github.com/Muthu1612/kanna/internal/config"
+	"github.com/Muthu1612/kanna/internal/logger"
+	"github.com/Muthu1612/kanna/internal/server"
 )
 
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
-	router := api.NewRouter()
+	log := logger.New()
 
-	addr := cfg.Server.Host + ":" + cfg.Server.Port
+	app := server.New(cfg, log)
 
-	log.Printf("Kanna server starting on %s", addr)
-
-	if err := router.Run(addr); err != nil {
-		log.Fatal(err)
+	if err := app.Run(); err != nil {
+		log.Error("server failed", slog.Any("error", err))
+		os.Exit(1)
 	}
 }
