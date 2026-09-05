@@ -11,16 +11,18 @@ import (
 	"time"
 
 	"github.com/Muthu1612/kanna/internal/api"
+	"github.com/Muthu1612/kanna/internal/app"
 	"github.com/Muthu1612/kanna/internal/config"
 )
 
 type Server struct {
 	httpServer *http.Server
 	logger     *slog.Logger
+	app        *app.App
 }
 
-func New(cfg config.Config, logger *slog.Logger) *Server {
-	router := api.NewRouter()
+func New(cfg config.Config, logger *slog.Logger, application *app.App) *Server {
+	router := api.NewRouter(application)
 
 	return &Server{
 		httpServer: &http.Server{
@@ -28,6 +30,7 @@ func New(cfg config.Config, logger *slog.Logger) *Server {
 			Handler: router,
 		},
 		logger: logger,
+		app:    application,
 	}
 }
 
