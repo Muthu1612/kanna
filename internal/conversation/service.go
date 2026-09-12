@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Muthu1612/kanna/internal/llm"
+	"github.com/Muthu1612/kanna/internal/agent"
 	"github.com/Muthu1612/kanna/internal/memory"
 )
 
@@ -13,16 +13,16 @@ type Service interface {
 }
 
 type conversationService struct {
-	llm    llm.Client
+	agent  agent.Agent
 	memory memory.Store
 }
 
 func NewService(
-	llmClient llm.Client,
+	agentService agent.Agent,
 	memoryStore memory.Store,
 ) Service {
 	return &conversationService{
-		llm:    llmClient,
+		agent:  agentService,
 		memory: memoryStore,
 	}
 }
@@ -31,14 +31,14 @@ func (s *conversationService) Chat(
 	ctx context.Context,
 	message string,
 ) (string, error) {
-	response, err := s.llm.Generate(
+	response, err := s.agent.Run(
 		ctx,
-		llm.Request{
-			Prompt: message,
+		agent.Request{
+			Message: message,
 		},
 	)
 	if err != nil {
-		return "", fmt.Errorf("generate response: %w", err)
+		return "", fmt.Errorf("process conversation: %w", err)
 	}
 
 	err = s.memory.SaveConversation(
