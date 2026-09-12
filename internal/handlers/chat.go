@@ -3,17 +3,19 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/Muthu1612/kanna/internal/llm"
+	"github.com/Muthu1612/kanna/internal/conversation"
 	"github.com/gin-gonic/gin"
 )
 
 type ChatHandler struct {
-	llm llm.Client
+	conversationService conversation.Service
 }
 
-func NewChatHandler(llmClient llm.Client) *ChatHandler {
+func NewChatHandler(
+	conversationService conversation.Service,
+) *ChatHandler {
 	return &ChatHandler{
-		llm: llmClient,
+		conversationService: conversationService,
 	}
 }
 
@@ -35,20 +37,18 @@ func (h *ChatHandler) Chat(c *gin.Context) {
 		return
 	}
 
-	response, err := h.llm.Generate(
+	response, err := h.conversationService.Chat(
 		c.Request.Context(),
-		llm.Request{
-			Prompt: request.Message,
-		},
+		request.Message,
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "failed to generate response",
+			"error": "failed to process conversation",
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, chatResponse{
-		Message: response.Content,
+		Message: response,
 	})
 }

@@ -11,7 +11,9 @@ func NewRouter(application *app.App) *gin.Engine {
 
 	r.GET("/health", handlers.Health)
 
-	chatHandler := handlers.NewChatHandler(application.LLM)
+	chatHandler := handlers.NewChatHandler(
+		application.ConversationService,
+	)
 
 	v1 := r.Group("/api/v1")
 	{
