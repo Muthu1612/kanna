@@ -30,54 +30,77 @@ func (s *service) Run(
 
 	toolDefinitions := s.toolRegistry.List()
 
-	llmTools := make([]llm.ToolDefinition, 0, len(toolDefinitions))
+	tools := make([]llm.ToolDefinition, 0, len(toolDefinitions))
 
 	for _, tool := range toolDefinitions {
-		llmTools = append(llmTools, llm.ToolDefinition{
+		tools = append(tools, llm.ToolDefinition{
 			Name:        tool.Name,
 			Description: tool.Description,
 			Parameters:  tool.Parameters,
 		})
 	}
 
+	messages := []llm.Message{
+		{
+			Role:    "user",
+			Content: request.Message,
+		},
+	}
+
 	result, err := s.llm.Generate(
 		ctx,
 		llm.Request{
-			Messages: []llm.Message{
-				{
-					Role:    "user",
-					Content: request.Message,
-				},
-			},
-			Tools: llmTools,
+			Messages: messages,
+			Tools:    tools,
+		},
+	)
+	if err != nil {
+		return Response{}, fmt.Errorf("initial LLM generation failed: %w", err)
+	}
+
+	// No tool requested.
+	if result.ToolCall == nil {
+		return Response{
+			Content: result.Content,
+		}, nil
+	}
+
+	// Execute requested tool.
+	toolResult, err := s.toolRegistry.Execute(
+		ctx,
+		result.ToolCall.Name,
+		result.ToolCall.Input,
+	)
+	if err != nil {
+		return Response{}, fmt.Errorf("execute tool: %w", err)
+	}
+
+	// Give the tool result back to the LLM.
+	messages = append(messages,
+		llm.Message{
+			Role:    "assistant",
+			Content: "",
+		},
+		llm.Message{
+			Role:    "tool",
+			Content: toolResult.Content,
+		},
+	)
+
+	finalResult, err := s.llm.Generate(
+		ctx,
+		llm.Request{
+			Messages: messages,
 		},
 	)
 	if err != nil {
 		return Response{}, fmt.Errorf(
-			"agent generation failed: %w",
+			"final LLM generation failed: %w",
 			err,
 		)
 	}
 
-	if result.ToolCall != nil {
-		output, err := s.toolRegistry.Execute(
-			ctx,
-			result.ToolCall.Name,
-			tools.Input(result.ToolCall.Input),
-		)
-		if err != nil {
-			return Response{}, fmt.Errorf(
-				"tool execution failed: %w",
-				err,
-			)
-		}
-
-		return Response{
-			Content: output.Content,
-		}, nil
-	}
-
 	return Response{
-		Content: result.Content,
+		Content: finalResult.Content,
 	}, nil
 }
